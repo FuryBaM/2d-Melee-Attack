@@ -19,32 +19,42 @@ public class AIBehaviour : MonoBehaviour
         movement = GetComponent<AIMovement>();
         attackController = GetComponent<AIAttackController>();
         characterController = GetComponent<CharacterController2D>();
+        characterController.OnLandEvent.AddListener(OnLanded);
+        _patrolRight = characterController.FacingRight;
         _leftBorder = _rightBorder = transform.position.x;
     }
-    private void Update()
+    private void FixedUpdate()
     {
-        if (!_target)
+        if (_target == null)
         {
+            print("No target");
             if (Mathf.Min(Mathf.Abs(transform.position.x - _leftBorder), Mathf.Abs(transform.position.x - _rightBorder)) > 1f)
             {
                 _leftBorder = _rightBorder = transform.position.x;
             }
             if (Mathf.Abs(_leftBorder - _rightBorder) <= _maxPatrolDistance)
             {
+                print("Exploring");
                 ExpandPatrolArea();
             }
             else
             {
+                print("Patroling");
                 Patrol();
             }
             DetectTarget();
         }
         else
         {
-            if (Vector2.Distance(transform.position, _target.position) < _targetDetectionRange)
+            if (Vector2.Distance(transform.position, _target.position) <= _targetDetectionRange + 1f)
+            {
+                print("Moving to target");
                 MoveToTarget();
+            }
             else
+            {
                 _target = null;
+            }
         }
     }
 
@@ -71,7 +81,7 @@ public class AIBehaviour : MonoBehaviour
 
     private void ExpandPatrolArea()
     {
-        print("Exploring");
+        print("Exploring" + " " + _target != null);
         Vector2 rayOriginGround = _patrolRight ? new Vector2(transform.position.x+0.1f, transform.position.y) : new Vector2(transform.position.x-0.1f, transform.position.y);
         Vector2 rayOriginObstacle = _patrolRight ? new Vector2(transform.position.x, transform.position.y+0.5f) : new Vector2(transform.position.x, transform.position.y+0.5f);
         Vector2 rayDirection = _patrolRight ? Vector2.right : Vector2.left;
@@ -136,6 +146,7 @@ public class AIBehaviour : MonoBehaviour
 
         if (Vector2.Distance(_target.position, transform.position) < _stopDistance)
         {
+            print("Hit");
             if (characterController.FacingRight && direction.x < 0)
             {
                 characterController.Flip();
@@ -143,22 +154,18 @@ public class AIBehaviour : MonoBehaviour
             direction = Vector2.zero;
             attackController.SimulateAttack();
         }
-
-        if (hitObstacle.collider != null && !_hasJumped)
+        if (hitObstacle.collider != null && _hasJumped == false)
         {
-            movement.Jump();
             _hasJumped = true;
+            movement.Jump();
         }
-        else if (hitObstacle.collider == null)
-        {
-            _hasJumped = false;
-        }
-        else
-        {
-            movement.Move(direction);
-        }
+        movement.Move(direction);
     }
 
+    private void OnLanded()
+    {
+        _hasJumped = false;
+    }
 
     private void OnDrawGizmosSelected()
     {
